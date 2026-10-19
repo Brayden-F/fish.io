@@ -862,7 +862,7 @@
 
           for (let i = fish.length - 1; i >= 0; i--) {
             const creature = fish[i];
-            if (distance(player, creature) < player.r + creature.r * .72) {
+            if (distance(player, creature) < player.r + creature.r) {
               if (winsScoreContest(player, creature)) {
                 setScore(creature.score);
                 explode(creature.x, creature.y, creature.color, creature.r);
@@ -882,7 +882,7 @@
         for (let i = 0; i < fish.length; i++) {
           if (eatenFish.has(i)) continue;
           for (let j = i + 1; j < fish.length; j++) {
-            if (eatenFish.has(j) || distance(fish[i], fish[j]) >= fish[i].r + fish[j].r * .72) continue;
+            if (eatenFish.has(j) || distance(fish[i], fish[j]) >= fish[i].r + fish[j].r) continue;
             const winnerIndex = winsScoreContest(fish[i], fish[j]) ? i : j;
             const loserIndex = winnerIndex === i ? j : i;
             const winner = fish[winnerIndex];
