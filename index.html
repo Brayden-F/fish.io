@@ -1,0 +1,1113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#061c33">
+  <title>fish.io</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=2">
+  <style>
+    :root {
+      --banner-background:
+        radial-gradient(ellipse at 50% 0%, rgba(15, 90, 126, 0.3), transparent 55%),
+        #061626;
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--banner-background);
+      color: #f1fbff;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-width: 320px;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      background: var(--banner-background);
+    }
+    main {
+      display: grid;
+      width: 100%;
+      height: 100%;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+    }
+    main:fullscreen {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      background: var(--banner-background);
+    }
+    main.playing .topbar, main.playing .tips { display: none; }
+    main.playing { grid-template-rows: minmax(0, 1fr); }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 20px;
+      background: var(--banner-background);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      display: grid;
+      width: 46px;
+      height: 46px;
+      place-items: center;
+      border: 1px solid rgba(128, 236, 255, .23);
+      border-radius: 15px;
+      background: linear-gradient(145deg, #103f5b, #0d2b43);
+      box-shadow: inset 0 1px rgba(255,255,255,.1), 0 8px 24px rgba(0,0,0,.2);
+    }
+    .brand-mark img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+    h1 { margin: 0; font-size: clamp(22px, 4vw, 30px); letter-spacing: -.06em; line-height: 1; }
+    h1 span { color: #64e9e3; }
+    .tagline { margin: 5px 0 0; color: #8baebe; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+    .game-shell {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid rgba(121, 223, 240, .25);
+      border-radius: 0;
+      background: #0b334a;
+      box-shadow: 0 24px 80px rgba(0,0,0,.42), 0 0 0 5px rgba(22, 71, 94, .15);
+      isolation: isolate;
+    }
+    main.playing .game-shell {
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      cursor: crosshair;
+    }
+    .hud {
+      position: absolute;
+      z-index: 2;
+      inset: 16px 16px auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+    }
+    .hud[hidden] { display: none; }
+    .stat-card {
+      min-width: 112px;
+      padding: 10px 14px;
+      border: 1px solid rgba(207, 247, 255, .17);
+      border-radius: 13px;
+      background: rgba(5, 27, 44, .72);
+      box-shadow: 0 6px 20px rgba(0,0,0,.12);
+      backdrop-filter: blur(10px);
+    }
+    .stat-label { color: #9ec0cf; font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    .stat-value { margin-top: 2px; color: white; font-size: 20px; font-weight: 800; line-height: 1.1; }
+    .stat-value em { color: #67e8dc; font-size: 12px; font-style: normal; }
+    .high-score-card { text-align: right; }
+    .overlay {
+      position: absolute;
+      z-index: 3;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      overflow: hidden;
+      background: #031426;
+      text-align: center;
+    }
+    .overlay[hidden] { display: none; }
+    .menu-bubbles { position: absolute; z-index: 0; inset: 0; overflow: hidden; pointer-events: none; }
+    .menu-bubbles span {
+      position: absolute;
+      bottom: -24px;
+      left: var(--left);
+      width: var(--size);
+      height: var(--size);
+      border: 1px solid rgba(105, 226, 224, .8);
+      border-radius: 50%;
+      background: transparent;
+      box-shadow: 0 0 8px rgba(105, 226, 224, .22);
+      animation: menu-bubble-rise var(--duration) linear var(--delay) infinite;
+    }
+    @keyframes menu-bubble-rise {
+      0% { transform: translate3d(0, 0, 0); opacity: 0; }
+      12% { opacity: .9; }
+      88% { opacity: .75; }
+      100% { transform: translate3d(24px, -115vh, 0); opacity: 0; }
+    }
+    .modal {
+      position: relative;
+      z-index: 1;
+      width: min(100%, 390px);
+      padding: 28px 28px 25px;
+      border: 1px solid rgba(196, 239, 248, .2);
+      border-radius: 0;
+      background: #082132;
+      box-shadow: 0 18px 60px rgba(0,0,0,.35);
+    }
+    .modal.game-over { width: min(100%, 540px); padding: 40px 42px 36px; }
+    .modal.game-over h2 { font-size: clamp(34px, 6vw, 46px); }
+    .modal.game-over p { max-width: 420px; font-size: 16px; }
+    .game-over-summary { text-align: center; }
+    .game-over-summary[hidden] { display: none; }
+    .game-over-summary p { margin: 10px 0 20px; }
+    .modal-fish { display: grid; width: 84px; height: 84px; margin: 0 auto 10px; place-items: center; background: linear-gradient(100deg, #48d8d5, #009ed7); background-size: 200% 100%; background-clip: text; color: transparent; font: 82px/1 system-ui, sans-serif; filter: drop-shadow(0 8px 15px rgba(42, 235, 220, .24)); animation: modal-fish-wave 3s ease-in-out infinite alternate; }
+    @keyframes modal-fish-wave {
+      from { background-position: 0% 50%; }
+      to { background-position: 100% 50%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .menu-bubbles span, .modal-fish, .modal h2 span, .play-button { animation: none; }
+    }
+    .modal h2 { margin: 0; font-size: clamp(27px, 5vw, 36px); letter-spacing: -.06em; }
+    .modal h2 span { background: linear-gradient(100deg, #48d8d5, #009ed7); background-size: 200% 100%; background-clip: text; color: transparent; animation: modal-fish-wave 3s ease-in-out infinite alternate; }
+    .modal p { margin: 10px auto 20px; max-width: 300px; color: #a4c1cf; font-size: 14px; line-height: 1.6; }
+    .modal p.game-tip { margin-top: -10px; color: #68e9df; font-weight: 700; }
+    .game-tip[hidden] { display: none; }
+    .color-picker {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 0 auto 18px;
+      color: #d9edf3;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .color-controls { display: flex; align-items: center; gap: 8px; }
+    .color-picker input {
+      width: 42px;
+      height: 42px;
+      padding: 3px;
+      border: 1px solid rgba(196, 239, 248, .4);
+      border-radius: 50%;
+      background: #051b2c;
+      cursor: pointer;
+    }
+    .color-reset {
+      display: inline-grid;
+      width: 20px;
+      height: 24px;
+      padding: 0;
+      place-items: center;
+      border: 0;
+      background: transparent;
+      color: #a4c1cf;
+      font: inherit;
+      font-size: 17px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .color-reset:hover { color: #fff; }
+    .color-reset:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+    .color-picker input::-webkit-color-swatch-wrapper { padding: 0; border-radius: 50%; }
+    .color-picker input::-webkit-color-swatch { border: 0; border-radius: 50%; }
+    .color-picker input::-moz-color-swatch { border: 0; border-radius: 50%; }
+    .play-button {
+      width: 100%;
+      padding: 13px 18px;
+      border: 0;
+      border-radius: 12px;
+      background: linear-gradient(100deg, #48d8d5, #1f8e84);
+      background-size: 200% 100%;
+      color: #063141;
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 8px 22px rgba(69, 220, 205, .2);
+      transition: transform .15s ease, filter .15s ease;
+      animation: modal-fish-wave 3s ease-in-out infinite alternate;
+    }
+    .play-button:hover { transform: translateY(-2px); filter: brightness(1.06); }
+    .play-button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+    .tips {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px 20px;
+      padding: 10px;
+      color: #b3cbd5;
+      font-size: 12px;
+      background: var(--banner-background);
+    }
+    .tips[hidden] { display: none; }
+    .tips span { display: inline-flex; align-items: center; gap: 6px; }
+    .tips b { color: #f5ffff; font-weight: 700; }
+    .legend { color: #92adbb; font-size: 11px; }
+    @media (max-width: 560px) {
+      .topbar { padding: 8px 10px; }
+      .brand-mark { width: 39px; height: 39px; border-radius: 13px; }
+      .tagline { font-size: 9px; }
+      .hud { inset: 9px 9px auto; }
+      .stat-card { min-width: 88px; padding: 7px 9px; border-radius: 10px; }
+      .stat-label { font-size: 8px; }
+      .stat-value { font-size: 16px; }
+      .modal { padding: 20px 18px 18px; }
+      .modal.game-over { padding: 26px 20px 22px; }
+      .modal.game-over p { font-size: 14px; }
+      .modal-fish { width: 68px; height: 68px; margin-bottom: 3px; font-size: 66px; }
+      .modal p { margin: 7px auto 14px; font-size: 12px; }
+      .color-picker { margin-bottom: 12px; }
+      .color-picker input { width: 36px; height: 36px; }
+      .play-button { padding: 11px; }
+      .tips { gap: 5px 13px; padding-top: 10px; font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"><img src="assets/favicon.svg?v=2" alt=""></div>
+        <div>
+          <h1>fish<span>.io</span></h1>
+          <p class="tagline">Eat. Grow. Rule the reef.</p>
+        </div>
+      </div>
+    </header>
+    <section class="game-shell" aria-label="fish.io game">
+      <canvas id="game" width="960" height="600" aria-label="Ocean arena. Move your mouse to steer your fish, which swims forward at a constant speed."></canvas>
+      <div class="hud" aria-live="polite" hidden>
+        <div class="stat-card">
+          <div class="stat-label">Your score</div>
+          <div class="stat-value"><span id="score">0</span> <em>pts</em></div>
+        </div>
+        <div class="stat-card high-score-card">
+          <div class="stat-label">High Score</div>
+          <div class="stat-value"><span id="best">0</span> <em>pts</em></div>
+        </div>
+      </div>
+      <div class="overlay" id="overlay">
+        <div class="menu-bubbles" aria-hidden="true">
+          <span style="--left: 5%; --size: 7px; --duration: 9s; --delay: -8s"></span>
+          <span style="--left: 13%; --size: 10px; --duration: 12s; --delay: -2s"></span>
+          <span style="--left: 22%; --size: 5px; --duration: 8s; --delay: -6s"></span>
+          <span style="--left: 31%; --size: 9px; --duration: 11s; --delay: -10s"></span>
+          <span style="--left: 40%; --size: 6px; --duration: 9s; --delay: -4s"></span>
+          <span style="--left: 49%; --size: 12px; --duration: 13s; --delay: -11s"></span>
+          <span style="--left: 58%; --size: 5px; --duration: 8s; --delay: -3s"></span>
+          <span style="--left: 67%; --size: 9px; --duration: 11s; --delay: -9s"></span>
+          <span style="--left: 76%; --size: 7px; --duration: 9s; --delay: -5s"></span>
+          <span style="--left: 85%; --size: 11px; --duration: 12s; --delay: -1s"></span>
+          <span style="--left: 94%; --size: 6px; --duration: 8s; --delay: -7s"></span>
+        </div>
+        <div class="modal" id="modal">
+          <div class="modal-fish" aria-hidden="true">ꕀ</div>
+          <h2 id="title">Small Fish<br><span>Big Ocean</span></h2>
+          <div class="game-over-summary" id="game-over-summary" hidden>
+            <p><span id="message"></span>&nbsp;&nbsp;<span id="survival-time"></span></p>
+          </div>
+          <p id="instructions">Collect glowing orbs to grow. Eat fish smaller than you — and steer clear of the bigger ones!</p>
+          <p class="game-tip" id="game-tip" hidden></p>
+          <div class="color-picker">
+            <span>Choose your fish color</span>
+            <div class="color-controls">
+              <input id="fish-color" type="color" value="#55ded4" aria-label="Choose your fish color">
+              <button id="reset-fish-color" class="color-reset" type="button" aria-label="Reset fish color to default teal" title="Reset to default teal">↻</button>
+            </div>
+          </div>
+          <button class="play-button" id="play" type="button">Dive In&nbsp; →</button>
+        </div>
+      </div>
+    </section>
+    <div class="tips">
+      <span>🖱️ <b>Move mouse</b> to steer</span>
+      <span>⚡ <b>Hold left mouse button</b> to boost · 1 pt/sec</span>
+      <span class="legend">Eat the little ones. Avoid the big ones.</span>
+    </div>
+  </main>
+  <script>
+    (() => {
+      const canvas = document.querySelector("#game");
+      const ctx = canvas.getContext("2d");
+      const scoreText = document.querySelector("#score");
+      const bestText = document.querySelector("#best");
+      const hud = document.querySelector(".hud");
+      const overlay = document.querySelector("#overlay");
+      const playButton = document.querySelector("#play");
+      const title = document.querySelector("#title");
+      const gameOverSummary = document.querySelector("#game-over-summary");
+      const message = document.querySelector("#message");
+      const survivalTime = document.querySelector("#survival-time");
+      const instructions = document.querySelector("#instructions");
+      const gameTip = document.querySelector("#game-tip");
+      const controlsTips = document.querySelector(".tips");
+      const colorPicker = document.querySelector("#fish-color");
+      const resetColorButton = document.querySelector("#reset-fish-color");
+      const main = document.querySelector("main");
+      const modal = document.querySelector("#modal");
+
+      let WIDTH = canvas.clientWidth;
+      let HEIGHT = canvas.clientHeight;
+      const WORLD = { width: 3200, height: 2400 };
+      const ORB_COUNT = 275;
+      const FISH_COUNT = 24;
+      const PLAYER_SPEED = 165;
+      const FISH_SPEED = PLAYER_SPEED;
+      const PLAYER_TURN_RATE = 3.8;
+      const gameTips = [
+        "Hold click to boost, but it costs 1 point per second.",
+        "Eat glowing orbs to gain points and grow.",
+        "Watch the scores above fish before swimming close.",
+        "Use a boost to escape a bigger fish.",
+        "The crown marks the fish with the highest score.",
+        "Try to avoid the biggest fish at all costs.",
+        "Try harder.",
+        "Try even harder.",
+        "Try even harder than that.",
+        "Try even harder than that, too.",
+        "Do better.",
+        "Do better than that.",
+        "I believe in you.",
+        "Maybe don't die so much.",
+        "You can do it.",
+        "You can change your fish color in the menu.",
+        "You can change your fish color in the menu, but it won't make you better.",
+        "Really?",
+        "If a fish has the same score as you, there is a 50/50 chance it will eat you.",
+        "The difficulty of the game scales with your score, so don't get too big too fast.",
+        "As your high score increases, the game will get harder and harder.",
+        "The game is designed to be challenging, so don't get discouraged.",
+        "fish.io is a game about risk and reward. Sometimes it's better to play it safe.",
+        "fish.io is a game about risk and reward. Sometimes it's better to take risks.",
+        "Just keep swimming.",
+        "Just keep swimming, and try not to get eaten.",
+        "'Just keep swimming', said a famous fish.",
+        "The best way to get better at fish.io is to play it.",
+        "Can you beat your high score?",
+        "My favorite color is five."
+      ];
+      const colors = ["#ff8a76", "#b798ff", "#ffd16e", "#68d9a7", "#ff82b7", "#69c8ff", "#e8a5ff", "#55ded4", "#ffb86c", "#a3ff7d", "#ff5f5f", "#ff9e5f", "#5fafff", "#5fffaf", "#d95fff", "#ff5f9e", "#5f9eff", "#9eff5f", "#ff5fd9", "#d9ff5f", "#5fd9ff", "#ffb3b3", "#b3ffb3", "#b3b3ff", "#5590dd",];
+      let player;
+      let orbs = [];
+      let fish = [];
+      let bubbles = [];
+      let particles = [];
+      let score = 0;
+      let best = 0;
+      let active = false;
+      let lastTime = 0;
+      let runStartedAt = 0;
+      const DEFAULT_PLAYER_COLOR = "#55ded4";
+      let playerColor = DEFAULT_PLAYER_COLOR;
+      let deathTransition = null;
+      let startMenuBackground = true;
+      let gameOverBackground = false;
+      let camera = { x: 0, y: 0 };
+      let pointer = { x: WIDTH / 2, y: HEIGHT / 2, active: false };
+      let boostHeld = false;
+      let boostDrain = 0;
+
+      try {
+        best = Number(localStorage.getItem("fish-io-best")) || 0;
+      } catch (error) {
+        console.warn("Could not read the saved best score.", error);
+      }
+      try {
+        const savedColor = localStorage.getItem("fish-io-color");
+        if (savedColor && /^#[0-9a-f]{6}$/i.test(savedColor)) playerColor = savedColor;
+      } catch (error) {
+        console.warn("Could not read the saved fish color.", error);
+      }
+      colorPicker.value = playerColor;
+      bestText.textContent = best;
+
+      function random(min, max) { return Math.random() * (max - min) + min; }
+      function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+      function distance(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+      function radiusFor(value) {
+        return 17 + Math.sqrt(value) * 1.8;
+      }
+
+      function makeOrb(x, y) {
+        return {
+          x: x === undefined ? random(30, WORLD.width - 30) : x,
+          y: y === undefined ? random(30, WORLD.height - 30) : y,
+          r: random(4, 7),
+          color: colors[Math.floor(Math.random() * colors.length)],
+          phase: random(0, Math.PI * 2)
+        };
+      }
+
+      function explode(x, y, color, size) {
+        const count = Math.round(clamp(size * 0.7, 14, 34));
+        for (let i = 0; i < count; i++) {
+          const angle = random(0, Math.PI * 2);
+          const speed = random(65, 250) * (size / 25);
+          const life = random(.35, .8);
+          particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            r: random(2, 6) * (size / 25),
+            color: Math.random() < .3 ? "#eaffff" : color,
+            life,
+            maxLife: life,
+            spin: random(-8, 8),
+            rotation: random(0, Math.PI * 2)
+          });
+        }
+      }
+
+      function updateParticles(dt) {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const particle = particles[i];
+          particle.life -= dt;
+          if (particle.life <= 0) {
+            particles.splice(i, 1);
+            continue;
+          }
+          particle.x += particle.vx * dt;
+          particle.y += particle.vy * dt;
+          particle.vx *= Math.exp(-2.5 * dt);
+          particle.vy *= Math.exp(-2.5 * dt);
+          particle.rotation += particle.spin * dt;
+        }
+      }
+
+      function makeFish(index, position) {
+        const rank = index % 5;
+        const isLargeFish = index === FISH_COUNT - 1;
+        const growthScore = player && rank >= 3 ? Math.max(0, player.score - 1) * rank / 4 : 0;
+        const fishScore = isLargeFish ? Math.max(25, best) : 1 + Math.round(growthScore);
+        const radius = radiusFor(fishScore);
+        let x = position ? position.x : random(45, WORLD.width - 45);
+        let y = position ? position.y : random(45, WORLD.height - 45);
+        if (!position && player) {
+          let attempts = 0;
+          while (Math.hypot(x - player.x, y - player.y) < 360 && attempts < 40) {
+            x = random(45, WORLD.width - 45);
+            y = random(45, WORLD.height - 45);
+            attempts++;
+          }
+        }
+        x = clamp(x, radius + 15, WORLD.width - radius - 15);
+        y = clamp(y, radius + 15, WORLD.height - radius - 15);
+        return {
+          x,
+          y,
+          score: fishScore,
+          r: radius,
+          speed: FISH_SPEED,
+          angle: random(0, Math.PI * 2),
+          turn: random(-1.2, 1.2),
+          color: colors[Math.floor(Math.random() * colors.length)],
+          phase: random(0, Math.PI * 2),
+          think: random(.2, 1.5),
+          boostDrain: 0,
+          boosting: false,
+          chasingPlayer: false
+        };
+      }
+
+      function resetGame() {
+        score = 1;
+        player = {
+          x: WORLD.width / 2,
+          y: WORLD.height / 2,
+          score: 1,
+          angle: 0,
+          color: playerColor,
+          phase: 0,
+          exploded: false,
+          r: radiusFor(1)
+        };
+        orbs = Array.from({ length: ORB_COUNT }, () => makeOrb());
+        fish = Array.from({ length: FISH_COUNT }, (_, index) =>
+          makeFish(index, index === FISH_COUNT - 1 ? { x: WORLD.width - 45, y: WORLD.height / 2 } : undefined)
+        );
+        bubbles = Array.from({ length: 80 }, () => ({
+          x: random(0, WORLD.width),
+          y: random(0, WORLD.height),
+          r: random(1, 4),
+          drift: random(5, 15),
+          alpha: random(.08, .24)
+        }));
+        particles = [];
+        gameOverBackground = false;
+        camera.x = player.x - WIDTH / 2;
+        camera.y = player.y - HEIGHT / 2;
+        pointer = { x: WIDTH / 2, y: HEIGHT / 2, active: false };
+        boostHeld = false;
+        boostDrain = 0;
+        scoreText.textContent = "1";
+        recordHighScore();
+        draw();
+      }
+
+      function recordHighScore() {
+        if (score <= best) return;
+        best = score;
+        bestText.textContent = best;
+        try {
+          localStorage.setItem("fish-io-best", String(best));
+        } catch (error) {
+          console.warn("Could not save the best score.", error);
+        }
+      }
+
+      function setScore(amount) {
+        score = Math.max(0, score + amount);
+        player.score = score;
+        player.r = radiusFor(score);
+        scoreText.textContent = score;
+        recordHighScore();
+      }
+
+      function addFishScore(creature, amount = 1) {
+        creature.score += amount;
+        creature.r = radiusFor(creature.score);
+      }
+
+      function winsScoreContest(first, second) {
+        if (first.score === second.score) return Math.random() < .5;
+        return first.score > second.score;
+      }
+
+      function updatePlayer(dt) {
+        if (boostHeld && score > 1) {
+          boostDrain += dt;
+          const pointsToSpend = Math.floor(boostDrain);
+          if (pointsToSpend > 0) {
+            const spent = Math.min(pointsToSpend, score - 1);
+            boostDrain -= spent;
+            setScore(-spent);
+            if (score <= 1) {
+              boostHeld = false;
+              boostDrain = 0;
+            }
+          }
+        } else {
+          boostDrain = 0;
+          if (score <= 1) boostHeld = false;
+        }
+
+        let dx = 0;
+        let dy = 0;
+        if (pointer.active) {
+          dx = pointer.x - (player.x - camera.x);
+          dy = pointer.y - (player.y - camera.y);
+          const length = Math.hypot(dx, dy);
+          if (length > 12) {
+            dx /= length;
+            dy /= length;
+          } else {
+            dx = 0;
+            dy = 0;
+          }
+        }
+        if (dx || dy) {
+          const heading = Math.atan2(dy, dx);
+          if (Number.isFinite(heading)) {
+            if (!Number.isFinite(player.angle)) player.angle = heading;
+            const turn = Math.atan2(Math.sin(heading - player.angle), Math.cos(heading - player.angle));
+            player.angle += clamp(turn, -PLAYER_TURN_RATE * dt, PLAYER_TURN_RATE * dt);
+          }
+        }
+        const speed = PLAYER_SPEED * (boostHeld && score > 1 ? 2 : 1);
+        player.x += Math.cos(player.angle) * speed * dt;
+        player.y += Math.sin(player.angle) * speed * dt;
+        if (player.x < player.r || player.x > WORLD.width - player.r ||
+            player.y < player.r || player.y > WORLD.height - player.r) {
+        player.exploded = true;
+        explode(player.x, player.y, player.color, player.r);
+        endGame();
+        return false;
+        }
+        return true;
+      }
+
+      function updateFish(dt) {
+        for (let i = fish.length - 1; i >= 0; i--) {
+          const creature = fish[i];
+          creature.think -= dt;
+          let threat = null;
+          let prey = null;
+          if (creature.think <= 0) {
+            creature.think = random(.45, 1.5);
+            let threatDistance = 320;
+            let preyDistance = 320;
+            const nearbyFish = [...fish.slice(0, i), ...fish.slice(i + 1)];
+            const targets = active ? [...nearbyFish, player] : nearbyFish;
+            for (const other of targets) {
+              const gap = distance(creature, other);
+              if (gap > 320) continue;
+              if (other.score > creature.score && gap < threatDistance) {
+                threat = other;
+                threatDistance = gap;
+              } else if (
+                (other.score < creature.score ||
+                  (other.score === creature.score && Math.random() < .5)) &&
+                gap < preyDistance
+              ) {
+                prey = other;
+                preyDistance = gap;
+              }
+            }
+            if (threat) {
+              creature.angle = Math.atan2(creature.y - threat.y, creature.x - threat.x);
+              creature.chasingPlayer = false;
+            } else if (prey) {
+              creature.angle = Math.atan2(prey.y - creature.y, prey.x - creature.x);
+              creature.chasingPlayer = active && prey === player;
+            } else {
+              creature.chasingPlayer = false;
+              let targetOrb = null;
+              let orbDistance = 550;
+              for (const orb of orbs) {
+                const gap = distance(creature, orb);
+                if (gap < orbDistance) {
+                  targetOrb = orb;
+                  orbDistance = gap;
+                }
+              }
+              if (targetOrb) {
+                creature.angle = Math.atan2(targetOrb.y - creature.y, targetOrb.x - creature.x);
+              } else {
+                creature.angle += random(-1.1, 1.1);
+              }
+            }
+            creature.boosting = Boolean(threat || prey) && creature.score > 1;
+          }
+          if (creature.boosting && creature.score > 1) {
+            creature.boostDrain += dt;
+            const pointsToSpend = Math.floor(creature.boostDrain);
+            if (pointsToSpend > 0) {
+              const spent = Math.min(pointsToSpend, creature.score - 1);
+              creature.score -= spent;
+              creature.r = radiusFor(creature.score);
+              creature.boostDrain -= spent;
+              if (creature.score <= 1) {
+                creature.boosting = false;
+                creature.boostDrain = 0;
+              }
+            }
+          } else {
+            creature.boosting = false;
+            creature.boostDrain = 0;
+          }
+          const speed = FISH_SPEED * (creature.boosting ? 2 : 1);
+          creature.x += Math.cos(creature.angle) * speed * dt;
+          creature.y += Math.sin(creature.angle) * speed * dt;
+          if (creature.x < creature.r || creature.x > WORLD.width - creature.r) {
+            explode(creature.x, creature.y, creature.color, creature.r);
+            fish[i] = makeFish(i);
+            continue;
+          }
+          if (creature.y < creature.r || creature.y > WORLD.height - creature.r) {
+            explode(creature.x, creature.y, creature.color, creature.r);
+            fish[i] = makeFish(i);
+            continue;
+          }
+
+          for (let orbIndex = orbs.length - 1; orbIndex >= 0; orbIndex--) {
+            const orb = orbs[orbIndex];
+            if (distance(creature, orb) < creature.r + orb.r) {
+              addFishScore(creature);
+              orbs[orbIndex] = makeOrb();
+            }
+          }
+        }
+      }
+
+      function update(dt) {
+        if (active && !updatePlayer(dt)) return;
+        updateFish(dt);
+        for (const bubble of bubbles) {
+          bubble.y -= bubble.drift * dt;
+          if (bubble.y < 0) bubble.y = WORLD.height;
+        }
+
+        if (active) {
+          for (let i = orbs.length - 1; i >= 0; i--) {
+            const orb = orbs[i];
+            if (distance(player, orb) < player.r + orb.r) {
+              setScore(1);
+              orbs[i] = makeOrb();
+            }
+          }
+
+          for (let i = fish.length - 1; i >= 0; i--) {
+            const creature = fish[i];
+            if (distance(player, creature) < player.r + creature.r * .72) {
+              if (winsScoreContest(player, creature)) {
+                setScore(creature.score);
+                explode(creature.x, creature.y, creature.color, creature.r);
+                fish[i] = makeFish(i);
+              } else {
+                addFishScore(creature, player.score);
+                player.exploded = true;
+                explode(player.x, player.y, player.color, player.r);
+                endGame();
+                return;
+              }
+            }
+          }
+        }
+
+        const eatenFish = new Set();
+        for (let i = 0; i < fish.length; i++) {
+          if (eatenFish.has(i)) continue;
+          for (let j = i + 1; j < fish.length; j++) {
+            if (eatenFish.has(j) || distance(fish[i], fish[j]) >= fish[i].r + fish[j].r * .72) continue;
+            const winnerIndex = winsScoreContest(fish[i], fish[j]) ? i : j;
+            const loserIndex = winnerIndex === i ? j : i;
+            const winner = fish[winnerIndex];
+            const loser = fish[loserIndex];
+            addFishScore(winner, loser.score);
+            explode(loser.x, loser.y, loser.color, loser.r);
+            eatenFish.add(loserIndex);
+          }
+        }
+        for (const index of eatenFish) fish[index] = makeFish(index);
+
+        if (active) {
+          camera.x += (player.x - WIDTH / 2 - camera.x) * (1 - Math.exp(-4 * dt));
+          camera.y += (player.y - HEIGHT / 2 - camera.y) * (1 - Math.exp(-4 * dt));
+        }
+      }
+
+      function drawFish(creature, time, isPlayer, isLargest) {
+        if (isPlayer && creature.exploded) return;
+        const wag = Math.sin(time * 7 + creature.phase) * .13;
+        const radius = creature.r;
+        ctx.save();
+        ctx.translate(creature.x, creature.y);
+        ctx.rotate((Number.isFinite(creature.angle) ? creature.angle : 0) + wag);
+        ctx.shadowColor = isPlayer ? `${creature.color}aa` : "rgba(0, 0, 0, .22)";
+        ctx.shadowBlur = isPlayer ? 18 : 8;
+        ctx.fillStyle = creature.color || "#55ded4";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, radius * 1.25, radius * .78, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = .85;
+        ctx.beginPath();
+        ctx.moveTo(-radius * .8, 0);
+        ctx.lineTo(-radius * 1.65, -radius * .65);
+        ctx.lineTo(-radius * 1.52, radius * .65);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "rgba(255,255,255,.22)";
+        ctx.beginPath();
+        ctx.ellipse(radius * .12, -radius * .24, radius * .63, radius * .18, -.08, 0, Math.PI * 2);
+        ctx.fill();
+        const eyeX = radius * .72;
+        ctx.fillStyle = "#f9ffff";
+        ctx.beginPath();
+        ctx.arc(eyeX, -radius * .18, Math.max(2.3, radius * .15), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#123247";
+        ctx.beginPath();
+        ctx.arc(eyeX + radius * .035, -radius * .18, Math.max(1.2, radius * .075), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        const scoreFontSize = Math.max(16, Math.min(40, radius * 1.15));
+        ctx.font = `700 ${scoreFontSize}px system-ui, sans-serif`;
+        ctx.fillStyle = "#fff";
+        ctx.shadowColor = "rgba(0, 16, 30, .9)";
+        ctx.shadowBlur = 4;
+        const scoreY = creature.y - radius * 2;
+        ctx.fillText(String(creature.score), creature.x, scoreY);
+        if (isLargest) {
+          const crownWidth = Math.max(22, Math.min(38, scoreFontSize * 1.15));
+          const crownHeight = crownWidth * .58;
+          const crownBottom = scoreY - scoreFontSize - 3;
+          const crownTop = crownBottom - crownHeight;
+          ctx.fillStyle = "#ffd34e";
+          ctx.strokeStyle = "#704d12";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(creature.x - crownWidth / 2, crownBottom);
+          ctx.lineTo(creature.x - crownWidth / 2, crownTop + crownHeight * .3);
+          ctx.lineTo(creature.x - crownWidth * .2, crownTop + crownHeight * .58);
+          ctx.lineTo(creature.x, crownTop);
+          ctx.lineTo(creature.x + crownWidth * .2, crownTop + crownHeight * .58);
+          ctx.lineTo(creature.x + crownWidth / 2, crownTop + crownHeight * .3);
+          ctx.lineTo(creature.x + crownWidth / 2, crownBottom);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = "#fff2a6";
+          for (const jewelX of [-.25, 0, .25]) {
+            ctx.beginPath();
+            ctx.arc(creature.x + crownWidth * jewelX, crownBottom - crownHeight * .23, 1.4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+      }
+
+      function drawWavePattern(left, top, width, height, time) {
+        ctx.save();
+        ctx.strokeStyle = "rgba(169, 235, 239, .075)";
+        ctx.lineWidth = 2;
+        const firstRow = Math.floor((top - 42) / 112);
+        const firstX = Math.floor(left / 28) * 28;
+        for (let row = firstRow; 42 + row * 112 < top + height; row++) {
+          const y = 42 + row * 112;
+          ctx.beginPath();
+          for (let x = firstX; x <= left + width + 28; x += 28) {
+            const waveY = y + Math.sin(x * .008 + time * .45 + row * .8) * 5 +
+              Math.sin(x * .015 - time * .28 + row) * 2.5;
+            if (x === firstX) ctx.moveTo(x, waveY);
+            else ctx.lineTo(x, waveY);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function draw() {
+        const time = performance.now() / 1000;
+        ctx.fillStyle = "#0b3049";
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        ctx.save();
+        ctx.translate(-camera.x, -camera.y);
+
+        const water = ctx.createLinearGradient(0, 0, 0, WORLD.height);
+        water.addColorStop(0, "#0c4057");
+        water.addColorStop(1, "#0b3049");
+        ctx.fillStyle = water;
+        ctx.fillRect(camera.x, camera.y, WIDTH, HEIGHT);
+        drawWavePattern(camera.x, camera.y, WIDTH, HEIGHT, time);
+
+        ctx.strokeStyle = "rgba(180, 237, 240, .045)";
+        ctx.lineWidth = 1;
+        const grid = 100;
+        for (let x = Math.floor(camera.x / grid) * grid; x < camera.x + WIDTH + grid; x += grid) {
+          ctx.beginPath(); ctx.moveTo(x, camera.y); ctx.lineTo(x, camera.y + HEIGHT); ctx.stroke();
+        }
+        for (let y = Math.floor(camera.y / grid) * grid; y < camera.y + HEIGHT + grid; y += grid) {
+          ctx.beginPath(); ctx.moveTo(camera.x, y); ctx.lineTo(camera.x + WIDTH, y); ctx.stroke();
+        }
+
+        for (const bubble of bubbles) {
+          ctx.fillStyle = `rgba(195, 242, 244, ${bubble.alpha})`;
+          ctx.beginPath(); ctx.arc(bubble.x, bubble.y, bubble.r, 0, Math.PI * 2); ctx.fill();
+        }
+        for (const orb of orbs) {
+          const pulse = 1 + Math.sin(time * 3 + orb.phase) * .13;
+          ctx.globalAlpha = .2;
+          ctx.fillStyle = orb.color;
+          ctx.beginPath(); ctx.arc(orb.x, orb.y, orb.r * 2.5 * pulse, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = orb.color;
+          ctx.beginPath(); ctx.arc(orb.x, orb.y, orb.r * pulse, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "rgba(255,255,255,.72)";
+          ctx.beginPath(); ctx.arc(orb.x - orb.r * .28, orb.y - orb.r * .3, orb.r * .28, 0, Math.PI * 2); ctx.fill();
+        }
+        const highestScore = Math.max(player.score, ...fish.map(creature => creature.score));
+        for (const creature of fish) {
+          if (creature.x > camera.x - 80 && creature.x < camera.x + WIDTH + 80 && creature.y > camera.y - 80 && creature.y < camera.y + HEIGHT + 80) {
+            drawFish(creature, time, false, creature.score === highestScore);
+          }
+        }
+        drawFish(player, time, true, player.score === highestScore);
+        for (const particle of particles) {
+          ctx.save();
+          ctx.globalAlpha = particle.life / particle.maxLife;
+          ctx.translate(particle.x, particle.y);
+          ctx.rotate(particle.rotation);
+          ctx.fillStyle = particle.color;
+          ctx.shadowColor = particle.color;
+          ctx.shadowBlur = 10;
+          ctx.fillRect(-particle.r, -particle.r * .65, particle.r * 2, particle.r * 1.3);
+          ctx.restore();
+        }
+
+        ctx.strokeStyle = "#a2f4f1";
+        ctx.lineWidth = 12;
+        ctx.strokeRect(0, 0, WORLD.width, WORLD.height);
+        ctx.restore();
+
+        if (active && fish.some(creature =>
+          creature.chasingPlayer && creature.score >= player.score * 10
+        )) {
+          const vignette = ctx.createRadialGradient(
+            WIDTH / 2, HEIGHT / 2, Math.min(WIDTH, HEIGHT) * .18,
+            WIDTH / 2, HEIGHT / 2, Math.hypot(WIDTH / 2, HEIGHT / 2)
+          );
+          vignette.addColorStop(0, "rgba(0, 3, 12, 0)");
+          vignette.addColorStop(.65, "rgba(0, 3, 12, .08)");
+          vignette.addColorStop(1, "rgba(0, 3, 12, .78)");
+          ctx.fillStyle = vignette;
+          ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        }
+      }
+
+      function endGame() {
+        if (!active) return;
+        active = false;
+        hud.hidden = true;
+        deathTransition = { elapsed: 0 };
+        recordHighScore();
+        title.innerHTML = `The Reef Wins<br><span>Try Again?</span>`;
+        modal.classList.add("game-over");
+        const elapsedSeconds = Math.floor((performance.now() - runStartedAt) / 100) / 10;
+        const minutes = Math.floor(elapsedSeconds / 60);
+        const seconds = (elapsedSeconds % 60).toFixed(1);
+        gameOverSummary.hidden = false;
+        message.textContent = `You scored ${score} points.`;
+        survivalTime.textContent = `You survived ${minutes} min, ${seconds} sec.`;
+        instructions.hidden = true;
+        gameTip.textContent = `Tip: ${gameTips[Math.floor(Math.random() * gameTips.length)]}`;
+        gameTip.hidden = false;
+        playButton.textContent = "Swim Again  →";
+      }
+
+      function startGame() {
+        resetGame();
+        title.innerHTML = `Small Fish<br><span>Big Ocean</span>`;
+        gameOverSummary.hidden = true;
+        instructions.hidden = false;
+        gameTip.hidden = true;
+        playButton.textContent = "Dive In  →";
+        overlay.hidden = true;
+        controlsTips.hidden = true;
+        hud.hidden = false;
+        active = true;
+        runStartedAt = performance.now();
+        main.classList.add("playing");
+        modal.classList.remove("game-over");
+        deathTransition = null;
+        startMenuBackground = false;
+        gameOverBackground = false;
+        lastTime = performance.now();
+        canvas.focus();
+        if (!document.fullscreenElement && typeof main.requestFullscreen === "function") {
+          main.requestFullscreen().then(() => {
+            requestAnimationFrame(() => requestAnimationFrame(resizeCanvas));
+          }).catch(error => {
+            console.warn("Could not enter fullscreen mode.", error);
+          });
+        }
+      }
+
+      function resizeCanvas() {
+        const width = Math.max(1, Math.round(canvas.clientWidth));
+        const height = Math.max(1, Math.round(canvas.clientHeight));
+        if (canvas.width === width && canvas.height === height) return;
+        canvas.width = width;
+        canvas.height = height;
+        WIDTH = width;
+        HEIGHT = height;
+        if (player) {
+          camera.x = player.x - WIDTH / 2;
+          camera.y = player.y - HEIGHT / 2;
+          pointer.x = WIDTH / 2;
+          pointer.y = HEIGHT / 2;
+        }
+      }
+      window.addEventListener("resize", resizeCanvas);
+      new ResizeObserver(resizeCanvas).observe(canvas);
+      document.addEventListener("fullscreenchange", () => {
+        requestAnimationFrame(() => requestAnimationFrame(resizeCanvas));
+      });
+
+      function frame(now) {
+        const dt = Math.min((now - lastTime) / 1000 || 0, .04);
+        lastTime = now;
+        updateParticles(dt);
+        if (active || deathTransition || gameOverBackground) update(dt);
+        if (deathTransition) {
+          deathTransition.elapsed += dt;
+          if (deathTransition.elapsed >= 2) {
+            deathTransition = null;
+            gameOverBackground = true;
+            overlay.hidden = false;
+            controlsTips.hidden = false;
+            main.classList.remove("playing");
+          }
+        }
+        draw();
+        if (deathTransition) {
+          const fade = clamp((deathTransition.elapsed - .8) / 1.2, 0, 1);
+          ctx.fillStyle = `rgba(0, 0, 0, ${fade})`;
+          ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        } else if (startMenuBackground || gameOverBackground) {
+          ctx.fillStyle = "#000";
+          ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        }
+        requestAnimationFrame(frame);
+      }
+
+      function setPointer(event) {
+        const rect = canvas.getBoundingClientRect();
+        pointer.x = (event.clientX - rect.left) * WIDTH / rect.width;
+        pointer.y = (event.clientY - rect.top) * HEIGHT / rect.height;
+        pointer.active = true;
+      }
+
+      canvas.addEventListener("pointermove", setPointer);
+      canvas.addEventListener("mousemove", setPointer);
+      canvas.addEventListener("pointerdown", event => {
+        setPointer(event);
+        canvas.setPointerCapture(event.pointerId);
+        if (active && event.button === 0 && score > 1) {
+          boostHeld = true;
+          boostDrain = 0;
+        }
+      });
+      canvas.addEventListener("pointerleave", () => {
+        pointer.active = false;
+        boostHeld = false;
+        boostDrain = 0;
+      });
+      canvas.addEventListener("pointerup", () => {
+        pointer.active = false;
+        boostHeld = false;
+        boostDrain = 0;
+      });
+      canvas.addEventListener("pointercancel", () => {
+        pointer.active = false;
+        boostHeld = false;
+        boostDrain = 0;
+      });
+      window.addEventListener("pointerup", () => {
+        boostHeld = false;
+        boostDrain = 0;
+      });
+      colorPicker.addEventListener("input", () => {
+        setPlayerColor(colorPicker.value);
+      });
+      resetColorButton.addEventListener("click", () => {
+        setPlayerColor(DEFAULT_PLAYER_COLOR);
+      });
+
+      function setPlayerColor(color) {
+        playerColor = color;
+        colorPicker.value = color;
+        if (player) player.color = playerColor;
+        try {
+          localStorage.setItem("fish-io-color", playerColor);
+        } catch (error) {
+          console.warn("Could not save the fish color.", error);
+        }
+      }
+      window.addEventListener("keydown", event => {
+        const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+        if (!active && key === "Enter") startGame();
+      });
+      playButton.addEventListener("click", startGame);
+
+      resizeCanvas();
+      resetGame();
+      requestAnimationFrame(frame);
+    })();
+  </script>
+</body>
+</html>
