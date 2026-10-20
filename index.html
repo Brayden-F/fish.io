@@ -448,9 +448,9 @@
 
       let WIDTH = canvas.clientWidth;
       let HEIGHT = canvas.clientHeight;
-      const WORLD = { width: 5000, height: 5000 };
-      const ORB_COUNT = 800;
-      const FISH_COUNT = 36;
+      const WORLD = { width: 4096, height: 4096 };
+      const ORB_COUNT = 700;
+      const FISH_COUNT = 32;
       const MAX_STARTING_LARGE_FISH_SCORE = 500;
       const PLAYER_SPEED = 165;
       const FISH_SPEED = PLAYER_SPEED;
@@ -686,7 +686,7 @@
         fish = Array.from({ length: FISH_COUNT }, (_, index) =>
           makeFish(index, index === FISH_COUNT - 1 ? { x: WORLD.width - 45, y: WORLD.height / 2 } : undefined)
         );
-        bubbles = Array.from({ length: 350 }, () => ({
+        bubbles = Array.from({ length: 300 }, () => ({
           x: random(0, WORLD.width),
           y: random(0, WORLD.height),
           r: random(1, 4),
