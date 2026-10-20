@@ -448,9 +448,9 @@
 
       let WIDTH = canvas.clientWidth;
       let HEIGHT = canvas.clientHeight;
-      const WORLD = { width: 3200, height: 2400 };
-      const ORB_COUNT = 275;
-      const FISH_COUNT = 24;
+      const WORLD = { width: 5000, height: 5000 };
+      const ORB_COUNT = 800;
+      const FISH_COUNT = 36;
       const MAX_STARTING_LARGE_FISH_SCORE = 500;
       const PLAYER_SPEED = 165;
       const FISH_SPEED = PLAYER_SPEED;
@@ -515,11 +515,11 @@
       let pointer = { x: WIDTH / 2, y: HEIGHT / 2, active: false };
       let boostHeld = false;
       let boostDrain = 0;
+      let boostPointerId = null;
       let controlsMode = "pc";
       let joystickPointerId = null;
       let joystickOrigin = { x: 0, y: 0 };
       let joystickVector = { x: 0, y: 0 };
-      const JOYSTICK_RADIUS = 34;
 
       try {
         const savedControlsMode = localStorage.getItem("fish-io-controls");
@@ -686,7 +686,7 @@
         fish = Array.from({ length: FISH_COUNT }, (_, index) =>
           makeFish(index, index === FISH_COUNT - 1 ? { x: WORLD.width - 45, y: WORLD.height / 2 } : undefined)
         );
-        bubbles = Array.from({ length: 80 }, () => ({
+        bubbles = Array.from({ length: 350 }, () => ({
           x: random(0, WORLD.width),
           y: random(0, WORLD.height),
           r: random(1, 4),
@@ -700,6 +700,8 @@
         pointer = { x: WIDTH / 2, y: HEIGHT / 2, active: false };
         boostHeld = false;
         boostDrain = 0;
+        boostPointerId = null;
+        releaseJoystick();
         scoreText.textContent = "1";
         recordHighScore();
         draw();
@@ -754,7 +756,10 @@
 
         let dx = 0;
         let dy = 0;
-        if (pointer.active) {
+        if (controlsMode === "mobile") {
+          dx = joystickVector.x;
+          dy = joystickVector.y;
+        } else if (pointer.active) {
           dx = pointer.x - (player.x - camera.x);
           dy = pointer.y - (player.y - camera.y);
           const length = Math.hypot(dx, dy);
@@ -1118,8 +1123,10 @@
       function endGame() {
         if (!active) return;
         active = false;
-        mobileBoostButton.hidden = true;
         boostHeld = false;
+        boostPointerId = null;
+        releaseJoystick();
+        updateControlsMode();
         hud.hidden = true;
         deathTransition = { elapsed: 0 };
         recordHighScore();
@@ -1148,7 +1155,7 @@
         controlsTips.hidden = true;
         hud.hidden = false;
         active = true;
-        mobileBoostButton.hidden = controlsMode !== "mobile";
+        updateControlsMode();
         runStartedAt = performance.now();
         main.classList.add("playing");
         modal.classList.remove("game-over");
@@ -1215,6 +1222,20 @@
       }
 
       function setPointer(event) {
+        if (controlsMode === "mobile") {
+          if (event.pointerId !== joystickPointerId) return;
+          const deltaX = event.clientX - joystickOrigin.x;
+          const deltaY = event.clientY - joystickOrigin.y;
+          const distance = Math.hypot(deltaX, deltaY);
+          const maxOffset = Math.max(0, (mobileJoystick.clientWidth - mobileJoystickKnob.offsetWidth) / 2 - 1);
+          const scale = distance > maxOffset ? maxOffset / distance : 1;
+          mobileJoystickKnob.style.transform =
+            `translate(${deltaX * scale}px, ${deltaY * scale}px)`;
+          joystickVector = distance > 8
+            ? { x: deltaX / distance, y: deltaY / distance }
+            : { x: 0, y: 0 };
+          return;
+        }
         const rect = canvas.getBoundingClientRect();
         pointer.x = (event.clientX - rect.left) * WIDTH / rect.width;
         pointer.y = (event.clientY - rect.top) * HEIGHT / rect.height;
@@ -1229,12 +1250,21 @@
           ? "⚡ <b>Hold Boost</b> to boost · 1 pt/sec"
           : "⚡ <b>Hold left mouse button</b> to boost · 1 pt/sec";
         mobileBoostButton.hidden = controlsMode !== "mobile" || !active;
+        mobileJoystick.hidden = controlsMode !== "mobile" || !active;
+      }
+
+      function releaseJoystick() {
+        joystickPointerId = null;
+        joystickVector = { x: 0, y: 0 };
+        mobileJoystickKnob.style.transform = "translate(0, 0)";
       }
 
       controlsModeSelect.addEventListener("change", () => {
         controlsMode = controlsModeSelect.value;
         boostHeld = false;
         boostDrain = 0;
+        boostPointerId = null;
+        releaseJoystick();
         updateControlsMode();
         try {
           localStorage.setItem("fish-io-controls", controlsMode);
@@ -1243,50 +1273,89 @@
         }
       });
       canvas.addEventListener("pointermove", setPointer);
-      canvas.addEventListener("mousemove", setPointer);
       canvas.addEventListener("pointerdown", event => {
-        setPointer(event);
+        if (!active) return;
+        if (controlsMode === "mobile") {
+          if (joystickPointerId !== null) return;
+          joystickPointerId = event.pointerId;
+          joystickOrigin = { x: event.clientX, y: event.clientY };
+          joystickVector = { x: 0, y: 0 };
+          mobileJoystickKnob.style.transform = "translate(0, 0)";
+        } else {
+          setPointer(event);
+        }
         canvas.setPointerCapture(event.pointerId);
         if (controlsMode === "pc" && active && event.button === 0 && score > 1) {
           boostHeld = true;
+          boostPointerId = event.pointerId;
           boostDrain = 0;
         }
       });
       canvas.addEventListener("pointerleave", () => {
-        pointer.active = false;
         if (controlsMode === "pc") {
+          pointer.active = false;
           boostHeld = false;
           boostDrain = 0;
+          boostPointerId = null;
         }
       });
-      canvas.addEventListener("pointerup", () => {
-        pointer.active = false;
-        boostHeld = false;
-        boostDrain = 0;
+      canvas.addEventListener("pointerup", event => {
+        if (controlsMode === "mobile") {
+          if (event.pointerId === joystickPointerId) releaseJoystick();
+        } else {
+          pointer.active = false;
+        }
+        if (event.pointerId === boostPointerId) {
+          boostHeld = false;
+          boostDrain = 0;
+          boostPointerId = null;
+        }
       });
-      canvas.addEventListener("pointercancel", () => {
-        pointer.active = false;
-        boostHeld = false;
-        boostDrain = 0;
+      canvas.addEventListener("pointercancel", event => {
+        if (controlsMode === "mobile") {
+          if (event.pointerId === joystickPointerId) releaseJoystick();
+        } else {
+          pointer.active = false;
+        }
+        if (event.pointerId === boostPointerId) {
+          boostHeld = false;
+          boostDrain = 0;
+          boostPointerId = null;
+        }
       });
-      window.addEventListener("pointerup", () => {
-        boostHeld = false;
-        boostDrain = 0;
+      window.addEventListener("pointerup", event => {
+        if (event.pointerId === boostPointerId) {
+          boostHeld = false;
+          boostDrain = 0;
+          boostPointerId = null;
+        }
+      });
+      window.addEventListener("pointercancel", event => {
+        if (event.pointerId === boostPointerId) {
+          boostHeld = false;
+          boostDrain = 0;
+          boostPointerId = null;
+        }
       });
       mobileBoostButton.addEventListener("pointerdown", event => {
         if (!active || controlsMode !== "mobile" || score <= 1) return;
         event.preventDefault();
         mobileBoostButton.setPointerCapture(event.pointerId);
         boostHeld = true;
+        boostPointerId = event.pointerId;
         boostDrain = 0;
       });
-      mobileBoostButton.addEventListener("pointerup", () => {
+      mobileBoostButton.addEventListener("pointerup", event => {
+        if (event.pointerId !== boostPointerId) return;
         boostHeld = false;
         boostDrain = 0;
+        boostPointerId = null;
       });
-      mobileBoostButton.addEventListener("pointercancel", () => {
+      mobileBoostButton.addEventListener("pointercancel", event => {
+        if (event.pointerId !== boostPointerId) return;
         boostHeld = false;
         boostDrain = 0;
+        boostPointerId = null;
       });
       colorPicker.addEventListener("input", () => {
         setPlayerColor(colorPicker.value);
