@@ -451,9 +451,11 @@
       const WORLD = { width: 3200, height: 2400 };
       const ORB_COUNT = 275;
       const FISH_COUNT = 24;
+      const MAX_STARTING_LARGE_FISH_SCORE = 500;
       const PLAYER_SPEED = 165;
       const FISH_SPEED = PLAYER_SPEED;
       const PLAYER_TURN_RATE = 3.8;
+      const FISH_TAIL = [[-.8, 0], [-1.65, -.65], [-1.52, .65]];
       const gameTips = [
         "Hold click to boost, but it costs 1 point per second.",
         "Eat glowing orbs to gain points and grow.",
@@ -547,6 +549,39 @@
       function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
       function distance(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 
+      function fishReach(creature, direction) {
+        const relativeAngle = direction - creature.angle;
+        const rayX = Math.cos(relativeAngle);
+        const rayY = Math.sin(relativeAngle);
+        const bodyReach = 1 / Math.sqrt((rayX / 1.25) ** 2 + (rayY / .78) ** 2);
+        let tailReach = 0;
+        for (let i = 0; i < FISH_TAIL.length; i++) {
+          const [ax, ay] = FISH_TAIL[i];
+          const [bx, by] = FISH_TAIL[(i + 1) % FISH_TAIL.length];
+          const edgeX = bx - ax;
+          const edgeY = by - ay;
+          const determinant = rayX * edgeY - rayY * edgeX;
+          if (Math.abs(determinant) < 1e-8) continue;
+          const reach = (ax * edgeY - ay * edgeX) / determinant;
+          const edgePosition = (ax * rayY - ay * rayX) / determinant;
+          if (reach >= 0 && edgePosition >= 0 && edgePosition <= 1) {
+            tailReach = Math.max(tailReach, reach);
+          }
+        }
+        return creature.r * Math.max(bodyReach, tailReach);
+      }
+
+      function fishOverlap(first, second) {
+        const direction = Math.atan2(second.y - first.y, second.x - first.x);
+        return distance(first, second) <
+          fishReach(first, direction) + fishReach(second, direction + Math.PI);
+      }
+
+      function fishTouchesOrb(creature, orb) {
+        const direction = Math.atan2(orb.y - creature.y, orb.x - creature.x);
+        return distance(creature, orb) < fishReach(creature, direction) + orb.r;
+      }
+
       function radiusFor(value) {
         return 17 + Math.sqrt(value) * 1.8;
       }
@@ -602,7 +637,9 @@
         const rank = index % 5;
         const isLargeFish = index === FISH_COUNT - 1;
         const growthScore = player && rank >= 3 ? Math.max(0, player.score - 1) * rank / 4 : 0;
-        const fishScore = isLargeFish ? Math.max(25, best) : 1 + Math.round(growthScore);
+        const fishScore = isLargeFish
+          ? clamp(Math.max(25, best), 25, MAX_STARTING_LARGE_FISH_SCORE)
+          : 1 + Math.round(growthScore);
         const radius = radiusFor(fishScore);
         let x = position ? position.x : random(45, WORLD.width - 45);
         let y = position ? position.y : random(45, WORLD.height - 45);
@@ -740,8 +777,10 @@
         const speed = PLAYER_SPEED * (boostHeld && score > 1 ? 2 : 1);
         player.x += Math.cos(player.angle) * speed * dt;
         player.y += Math.sin(player.angle) * speed * dt;
-        if (player.x < player.r || player.x > WORLD.width - player.r ||
-            player.y < player.r || player.y > WORLD.height - player.r) {
+        if (player.x < fishReach(player, Math.PI) ||
+            player.x > WORLD.width - fishReach(player, 0) ||
+            player.y < fishReach(player, -Math.PI / 2) ||
+            player.y > WORLD.height - fishReach(player, Math.PI / 2)) {
         player.exploded = true;
         explode(player.x, player.y, player.color, player.r);
         endGame();
@@ -822,12 +861,14 @@
           const speed = FISH_SPEED * (creature.boosting ? 2 : 1);
           creature.x += Math.cos(creature.angle) * speed * dt;
           creature.y += Math.sin(creature.angle) * speed * dt;
-          if (creature.x < creature.r || creature.x > WORLD.width - creature.r) {
+          if (creature.x < fishReach(creature, Math.PI) ||
+              creature.x > WORLD.width - fishReach(creature, 0)) {
             explode(creature.x, creature.y, creature.color, creature.r);
             fish[i] = makeFish(i);
             continue;
           }
-          if (creature.y < creature.r || creature.y > WORLD.height - creature.r) {
+          if (creature.y < fishReach(creature, -Math.PI / 2) ||
+              creature.y > WORLD.height - fishReach(creature, Math.PI / 2)) {
             explode(creature.x, creature.y, creature.color, creature.r);
             fish[i] = makeFish(i);
             continue;
@@ -835,7 +876,7 @@
 
           for (let orbIndex = orbs.length - 1; orbIndex >= 0; orbIndex--) {
             const orb = orbs[orbIndex];
-            if (distance(creature, orb) < creature.r + orb.r) {
+            if (fishTouchesOrb(creature, orb)) {
               addFishScore(creature);
               orbs[orbIndex] = makeOrb();
             }
@@ -854,7 +895,7 @@
         if (active) {
           for (let i = orbs.length - 1; i >= 0; i--) {
             const orb = orbs[i];
-            if (distance(player, orb) < player.r + orb.r) {
+            if (fishTouchesOrb(player, orb)) {
               setScore(1);
               orbs[i] = makeOrb();
             }
@@ -862,7 +903,7 @@
 
           for (let i = fish.length - 1; i >= 0; i--) {
             const creature = fish[i];
-            if (distance(player, creature) < player.r + creature.r) {
+            if (fishOverlap(player, creature)) {
               if (winsScoreContest(player, creature)) {
                 setScore(creature.score);
                 explode(creature.x, creature.y, creature.color, creature.r);
@@ -882,7 +923,7 @@
         for (let i = 0; i < fish.length; i++) {
           if (eatenFish.has(i)) continue;
           for (let j = i + 1; j < fish.length; j++) {
-            if (eatenFish.has(j) || distance(fish[i], fish[j]) >= fish[i].r + fish[j].r) continue;
+            if (eatenFish.has(j) || !fishOverlap(fish[i], fish[j])) continue;
             const winnerIndex = winsScoreContest(fish[i], fish[j]) ? i : j;
             const loserIndex = winnerIndex === i ? j : i;
             const winner = fish[winnerIndex];
