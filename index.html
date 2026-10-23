@@ -88,6 +88,60 @@
       cursor: crosshair;
     }
     main.playing canvas { cursor: none; }
+    .mobile-boost {
+      position: absolute;
+      z-index: 2;
+      right: 22px;
+      bottom: 22px;
+      display: grid;
+      width: 64px;
+      height: 64px;
+      place-items: center;
+      border: 1px solid rgba(207, 247, 255, .35);
+      border-radius: 50%;
+      background: rgba(5, 27, 44, .78);
+      color: #f1fbff;
+      font-family: inherit;
+      font-size: 28px;
+      line-height: 1;
+      font-weight: 800;
+      touch-action: none;
+      user-select: none;
+    }
+    .mobile-boost[hidden] { display: none; }
+    .mobile-boost:active,
+    .mobile-boost.boosting {
+      border-color: #a4fff4;
+      background: #20bcae;
+      color: #fff;
+      box-shadow: 0 0 12px 4px rgba(100, 233, 227, .75), 0 0 30px rgba(100, 233, 227, .55);
+      transform: scale(.94);
+    }
+    .mobile-joystick {
+      position: absolute;
+      z-index: 2;
+      left: 22px;
+      bottom: 22px;
+      display: grid;
+      width: 104px;
+      height: 104px;
+      place-items: center;
+      border: 1px solid rgba(207, 247, 255, .32);
+      border-radius: 50%;
+      background: rgba(5, 27, 44, .4);
+      pointer-events: none;
+      touch-action: none;
+    }
+    .mobile-joystick[hidden] { display: none; }
+    .mobile-joystick-knob {
+      width: 46px;
+      height: 46px;
+      border: 1px solid rgba(207, 247, 255, .65);
+      border-radius: 50%;
+      background: rgba(100, 233, 227, .55);
+      box-shadow: 0 3px 12px rgba(0, 0, 0, .35);
+      transform: translate(0, 0);
+    }
     .game-crosshair {
       position: absolute;
       z-index: 2;
@@ -104,6 +158,8 @@
     }
     main:not(.playing) button:hover,
     main:not(.playing) button:hover *,
+    main:not(.playing) .controls-picker button:hover,
+    main:not(.playing) .controls-picker button:hover *,
     main:not(.playing) .color-input-wrap:hover,
     main:not(.playing) .color-input-wrap:hover * {
       cursor: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2238%22 height=%2238%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M29 16C23 8 13 6 6 12L2 8v16l4-4c7 6 17 4 23-4Z%22 fill=%22%235dd8d4%22 stroke=%22%230b3049%22 stroke-width=%222%22 stroke-linejoin=%22round%22/%3E%3Ccircle cx=%2222%22 cy=%2214%22 r=%221.5%22 fill=%22%230b3049%22/%3E%3C/svg%3E") 18 19, auto;
@@ -261,9 +317,9 @@
     .play-button:hover { transform: translateY(-2px); filter: brightness(1.06); }
     .play-button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
     .tips {
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
       align-items: center;
-      justify-content: space-between;
       gap: 12px;
       padding: 10px;
       color: #b3cbd5;
@@ -271,11 +327,30 @@
       background: var(--banner-background);
     }
     .tips[hidden] { display: none; }
-    .tips-guidance { display: flex; flex: 1; flex-wrap: wrap; justify-content: center; gap: 8px 20px; }
+    .tips-guidance { grid-column: 2; display: flex; min-width: 0; flex-wrap: wrap; justify-content: center; gap: 8px 20px; }
     .tips span { display: inline-flex; align-items: center; gap: 6px; }
     .tips b { color: #f5ffff; font-weight: 700; }
     .tips .icon { display: inline-flex; width: 18px; height: 18px; flex: 0 0 auto; color: #5dd8d4; }
     .tips .icon svg { display: block; width: 100%; height: 100%; }
+    .tips .touch-icon { display: none; }
+    main.mobile-mode .tips .mouse-icon { display: none; }
+    main.mobile-mode .tips .touch-icon { display: inline-flex; }
+    .controls-picker { grid-column: 3; justify-self: end; }
+    .controls-picker button {
+      width: 120px;
+      height: 24px;
+      padding: 6px 9px;
+      border: 1px solid rgba(121, 223, 240, .25);
+      border-radius: 4px;
+      background: #0a2638;
+      color: #b3cbd5;
+      font: inherit;
+      font-size: 11px;
+      text-align: center;
+      white-space: nowrap;
+      cursor: inherit;
+    }
+    .controls-picker button:focus-visible { outline: 2px solid #64e9e3; outline-offset: 2px; }
     .legend { color: #92adbb; font-size: 11px; }
     .legend-fish { display: inline-flex; width: 16px; height: 16px; color: #5dd8d4; }
     .legend-fish svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -299,6 +374,10 @@
       .tips { gap: 8px; padding: 8px; font-size: 10px; }
       .tips-guidance { gap: 5px 13px; justify-content: flex-start; }
       .legend { display: none !important; }
+      .controls-picker button { padding: 6px 8px; font-size: 10px; }
+      .mobile-boost { right: 16px; bottom: 16px; width: 58px; height: 58px; }
+      .mobile-joystick { left: 16px; bottom: 16px; width: 92px; height: 92px; }
+      .mobile-joystick-knob { width: 42px; height: 42px; }
     }
   </style>
 </head>
@@ -316,6 +395,10 @@
     </header>
     <section class="game-shell" aria-label="fish.io game">
       <canvas id="game" width="960" height="600" aria-label="Ocean arena. Move your mouse to steer your fish, which swims forward at a constant speed."></canvas>
+      <button class="mobile-boost" id="mobile-boost" type="button" aria-label="Boost" hidden>⚡</button>
+      <div class="mobile-joystick" id="mobile-joystick" aria-hidden="true" hidden>
+        <div class="mobile-joystick-knob" id="mobile-joystick-knob"></div>
+      </div>
       <div class="game-crosshair" id="game-crosshair" aria-hidden="true">
         <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path d="M16 2v9M16 21v9M2 16h9M21 16h9"></path>
@@ -370,9 +453,12 @@
     </section>
     <div class="tips">
       <div class="tips-guidance">
-        <span id="steering-tip"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="6"></rect><path d="M12 3v6"></path></svg></span> <b>Move mouse</b> to steer</span>
-        <span id="boost-tip"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13.2 1.5-8.4 11.5h5.8l-.8 9.5L19.2 10h-6l0-8.5Z"></path></svg></span> <b>Hold left mouse button</b> to boost · 1 pt/sec</span>
+        <span id="steering-tip"><span class="icon mouse-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="6"></rect><path d="M12 3v6"></path></svg></span><span class="icon touch-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11V5a2 2 0 0 1 4 0v6-2a2 2 0 0 1 4 0v2-1a2 2 0 0 1 4 0v6c0 4-3 6-7 6h-1c-2 0-3-1-4-2l-3-3a2 2 0 0 1 3-3l2 2"></path></svg></span> <b id="steering-label">Move mouse</b> <span id="steering-action">to steer</span></span>
+        <span id="boost-tip"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13.2 1.5-8.4 11.5h5.8l-.8 9.5L19.2 10h-6l0-8.5Z"></path></svg></span> <b id="boost-label">Hold left mouse button</b> to boost · 1 pt/sec</span>
         <span class="legend"><span class="legend-fish" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5.2 12 1.5 8v8l3.7-4Zm.8 0c2.5-3.7 5.7-5.5 9.1-5.5 3.5 0 6.1 2 7.4 5.5-1.3 3.5-3.9 5.5-7.4 5.5C11.7 17.5 8.5 15.7 6 12Z"/></svg></span> Eat the little ones. Avoid the big ones.</span>
+      </div>
+      <div class="controls-picker">
+        <button id="controls-mode" type="button" aria-label="Switch controls. Current mode: PC controls">PC controls</button>
       </div>
     </div>
   </main>
@@ -382,6 +468,12 @@
       const ctx = canvas.getContext("2d");
       const gameShell = document.querySelector(".game-shell");
       const gameCrosshair = document.querySelector("#game-crosshair");
+      const controlsModeSelect = document.querySelector("#controls-mode");
+      const steeringLabel = document.querySelector("#steering-label");
+      const boostLabel = document.querySelector("#boost-label");
+      const mobileBoostButton = document.querySelector("#mobile-boost");
+      const mobileJoystick = document.querySelector("#mobile-joystick");
+      const mobileJoystickKnob = document.querySelector("#mobile-joystick-knob");
       const scoreText = document.querySelector("#score");
       const bestText = document.querySelector("#best");
       const hud = document.querySelector(".hud");
@@ -469,6 +561,18 @@
       let boostHeld = false;
       let boostDrain = 0;
       let boostPointerId = null;
+      let controlsMode = "pc";
+      let joystickPointerId = null;
+      let joystickOrigin = { x: 0, y: 0 };
+      let joystickVector = { x: 0, y: 0 };
+
+      try {
+        const savedControlsMode = localStorage.getItem("fish-io-controls");
+        if (savedControlsMode === "pc" || savedControlsMode === "mobile") controlsMode = savedControlsMode;
+      } catch (error) {
+        console.warn("Could not read the saved control scheme.", error);
+      }
+      updateControlsMode();
 
       try {
         best = Number(localStorage.getItem("fish-io-best")) || 0;
@@ -643,6 +747,8 @@
         setBoostActive(false);
         boostDrain = 0;
         boostPointerId = null;
+        mobileBoostButton.classList.remove("boosting");
+        releaseJoystick();
         scoreText.textContent = "1";
         recordHighScore();
         draw();
@@ -697,7 +803,10 @@
 
         let dx = 0;
         let dy = 0;
-        if (pointer.active) {
+        if (controlsMode === "mobile") {
+          dx = joystickVector.x;
+          dy = joystickVector.y;
+        } else if (pointer.active) {
           dx = pointer.x - (player.x - camera.x);
           dy = pointer.y - (player.y - camera.y);
           const length = Math.hypot(dx, dy);
@@ -1063,7 +1172,9 @@
         active = false;
         setBoostActive(false);
         boostPointerId = null;
+        mobileBoostButton.classList.remove("boosting");
         gameCrosshair.style.visibility = "hidden";
+        updateControlsMode();
         hud.hidden = true;
         deathTransition = { elapsed: 0 };
         recordHighScore();
@@ -1092,6 +1203,7 @@
         controlsTips.hidden = true;
         hud.hidden = false;
         active = true;
+        updateControlsMode();
         runStartedAt = performance.now();
         main.classList.add("playing");
         modal.classList.remove("game-over");
@@ -1158,6 +1270,20 @@
       }
 
       function setPointer(event) {
+        if (controlsMode === "mobile") {
+          if (event.pointerId !== joystickPointerId) return;
+          const deltaX = event.clientX - joystickOrigin.x;
+          const deltaY = event.clientY - joystickOrigin.y;
+          const distance = Math.hypot(deltaX, deltaY);
+          const maxOffset = Math.max(0, (mobileJoystick.clientWidth - mobileJoystickKnob.offsetWidth) / 2 - 1);
+          const scale = distance > maxOffset ? maxOffset / distance : 1;
+          mobileJoystickKnob.style.transform =
+            `translate(${deltaX * scale}px, ${deltaY * scale}px)`;
+          joystickVector = distance > 8
+            ? { x: deltaX / distance, y: deltaY / distance }
+            : { x: 0, y: 0 };
+          return;
+        }
         if (event.pointerType !== "mouse") return;
         const rect = canvas.getBoundingClientRect();
         pointer.x = (event.clientX - rect.left) * WIDTH / rect.width;
@@ -1171,22 +1297,67 @@
         }
       }
 
+      function updateControlsMode() {
+        const isMobile = controlsMode === "mobile";
+        main.classList.toggle("mobile-mode", isMobile);
+        controlsModeSelect.textContent = isMobile ? "Mobile controls" : "PC controls";
+        controlsModeSelect.setAttribute(
+          "aria-label",
+          `Switch controls. Current mode: ${isMobile ? "Mobile" : "PC"} controls`
+        );
+        steeringLabel.textContent = isMobile ? "Touch and drag" : "Move mouse";
+        boostLabel.textContent = isMobile ? "Hold Boost" : "Hold left mouse button";
+        mobileBoostButton.hidden = !isMobile || !active;
+        mobileJoystick.hidden = !isMobile || !active;
+      }
+
+      function releaseJoystick() {
+        joystickPointerId = null;
+        joystickVector = { x: 0, y: 0 };
+        mobileJoystickKnob.style.transform = "translate(0, 0)";
+      }
+
       function setBoostActive(isActive) {
         boostHeld = isActive;
       }
 
+      controlsModeSelect.addEventListener("click", () => {
+        controlsMode = controlsMode === "pc" ? "mobile" : "pc";
+        setBoostActive(false);
+        boostDrain = 0;
+        boostPointerId = null;
+        mobileBoostButton.classList.remove("boosting");
+        releaseJoystick();
+        updateControlsMode();
+        try {
+          localStorage.setItem("fish-io-controls", controlsMode);
+        } catch (error) {
+          console.warn("Could not save the control scheme.", error);
+        }
+      });
+
       canvas.addEventListener("pointermove", setPointer);
       canvas.addEventListener("pointerdown", event => {
-        if (!active || event.pointerType !== "mouse") return;
-        setPointer(event);
+        if (!active) return;
+        if (controlsMode === "mobile") {
+          if (event.pointerType !== "touch" || joystickPointerId !== null) return;
+          joystickPointerId = event.pointerId;
+          joystickOrigin = { x: event.clientX, y: event.clientY };
+          joystickVector = { x: 0, y: 0 };
+          mobileJoystickKnob.style.transform = "translate(0, 0)";
+        } else {
+          if (event.pointerType !== "mouse") return;
+          setPointer(event);
+        }
         canvas.setPointerCapture(event.pointerId);
-        if (event.button === 0 && score > 1) {
+        if (controlsMode === "pc" && event.button === 0 && score > 1) {
           setBoostActive(true);
           boostPointerId = event.pointerId;
           boostDrain = 0;
         }
       });
       canvas.addEventListener("pointerleave", () => {
+        if (controlsMode === "mobile") return;
         pointer.active = false;
         gameCrosshair.style.visibility = "hidden";
         setBoostActive(false);
@@ -1194,16 +1365,20 @@
         boostPointerId = null;
       });
       canvas.addEventListener("pointerup", event => {
-        pointer.active = false;
+        if (event.pointerId === joystickPointerId) releaseJoystick();
+        if (event.pointerType === "mouse") pointer.active = false;
         if (event.pointerId === boostPointerId) {
+          mobileBoostButton.classList.remove("boosting");
           setBoostActive(false);
           boostDrain = 0;
           boostPointerId = null;
         }
       });
       canvas.addEventListener("pointercancel", event => {
-        pointer.active = false;
+        if (event.pointerId === joystickPointerId) releaseJoystick();
+        if (event.pointerType === "mouse") pointer.active = false;
         if (event.pointerId === boostPointerId) {
+          mobileBoostButton.classList.remove("boosting");
           setBoostActive(false);
           boostDrain = 0;
           boostPointerId = null;
@@ -1211,6 +1386,7 @@
       });
       window.addEventListener("pointerup", event => {
         if (event.pointerId === boostPointerId) {
+          mobileBoostButton.classList.remove("boosting");
           setBoostActive(false);
           boostDrain = 0;
           boostPointerId = null;
@@ -1218,10 +1394,34 @@
       });
       window.addEventListener("pointercancel", event => {
         if (event.pointerId === boostPointerId) {
+          mobileBoostButton.classList.remove("boosting");
           setBoostActive(false);
           boostDrain = 0;
           boostPointerId = null;
         }
+      });
+      mobileBoostButton.addEventListener("pointerdown", event => {
+        if (!active || controlsMode !== "mobile" || event.pointerType !== "touch") return;
+        event.preventDefault();
+        mobileBoostButton.setPointerCapture(event.pointerId);
+        boostPointerId = event.pointerId;
+        setBoostActive(score > 1);
+        mobileBoostButton.classList.add("boosting");
+        boostDrain = 0;
+      });
+      mobileBoostButton.addEventListener("pointerup", event => {
+        if (event.pointerId !== boostPointerId) return;
+        mobileBoostButton.classList.remove("boosting");
+        setBoostActive(false);
+        boostDrain = 0;
+        boostPointerId = null;
+      });
+      mobileBoostButton.addEventListener("pointercancel", event => {
+        if (event.pointerId !== boostPointerId) return;
+        mobileBoostButton.classList.remove("boosting");
+        setBoostActive(false);
+        boostDrain = 0;
+        boostPointerId = null;
       });
       colorPicker.addEventListener("input", () => {
         setPlayerColor(colorPicker.value);
