@@ -327,6 +327,20 @@
       background: var(--banner-background);
     }
     .tips[hidden] { display: none; }
+    .record-size {
+      grid-column: 1;
+      justify-self: start;
+      display: grid;
+      min-width: 0;
+      gap: 2px;
+      color: #92adbb;
+      font-size: 9px;
+      line-height: 1.1;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-weight: 800;
+    }
+    .record-size strong { display: flex; align-items: baseline; gap: 3px; color: #5dd8d4; font-size: 12px; letter-spacing: 0; white-space: nowrap; }
     .tips-guidance { grid-column: 2; display: flex; min-width: 0; flex-wrap: wrap; justify-content: center; gap: 8px 20px; }
     .tips span { display: inline-flex; align-items: center; gap: 6px; }
     .tips b { color: #f5ffff; font-weight: 700; }
@@ -372,7 +386,12 @@
       .color-input-wrap { width: 36px; height: 36px; padding: 3px; }
       .play-button { padding: 11px; }
       .tips { gap: 8px; padding: 8px; font-size: 10px; }
-      .tips-guidance { gap: 5px 13px; justify-content: flex-start; }
+      .tips { padding-top: 14px; padding-bottom: 14px; }
+      .tips { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; }
+      .record-size { grid-column: 1; grid-row: 1; }
+      .tips-guidance { flex-direction: column; align-items: center; gap: 5px; justify-content: center; }
+      .tips-guidance { grid-column: 1 / -1; grid-row: 2; }
+      .controls-picker { grid-column: 2; grid-row: 1; }
       .legend { display: none !important; }
       .controls-picker button { padding: 6px 8px; font-size: 10px; }
       .mobile-boost { right: 16px; bottom: 16px; width: 58px; height: 58px; }
@@ -452,6 +471,10 @@
       </div>
     </section>
     <div class="tips">
+      <div class="record-size" aria-label="High Score">
+        <span>High Score</span>
+        <strong><span id="record-size">0</span> <span>pts</span></strong>
+      </div>
       <div class="tips-guidance">
         <span id="steering-tip"><span class="icon mouse-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="6"></rect><path d="M12 3v6"></path></svg></span><span class="icon touch-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11V5a2 2 0 0 1 4 0v6-2a2 2 0 0 1 4 0v2-1a2 2 0 0 1 4 0v6c0 4-3 6-7 6h-1c-2 0-3-1-4-2l-3-3a2 2 0 0 1 3-3l2 2"></path></svg></span> <b id="steering-label">Move mouse</b> <span id="steering-action">to steer</span></span>
         <span id="boost-tip"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13.2 1.5-8.4 11.5h5.8l-.8 9.5L19.2 10h-6l0-8.5Z"></path></svg></span> <b id="boost-label">Hold left mouse button</b> to boost · 1 pt/sec</span>
@@ -476,6 +499,7 @@
       const mobileJoystickKnob = document.querySelector("#mobile-joystick-knob");
       const scoreText = document.querySelector("#score");
       const bestText = document.querySelector("#best");
+      const recordSizeText = document.querySelector("#record-size");
       const hud = document.querySelector(".hud");
       const overlay = document.querySelector("#overlay");
       const playButton = document.querySelector("#play");
@@ -589,6 +613,7 @@
       colorPreview.style.backgroundColor = playerColor;
       gameCrosshair.style.color = playerColor;
       bestText.textContent = best;
+      recordSizeText.textContent = best;
 
       function random(min, max) { return Math.random() * (max - min) + min; }
       function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
@@ -758,6 +783,7 @@
         if (score <= best) return;
         best = score;
         bestText.textContent = best;
+        recordSizeText.textContent = best;
         try {
           localStorage.setItem("fish-io-best", String(best));
         } catch (error) {
