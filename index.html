@@ -87,6 +87,27 @@
       height: 100%;
       cursor: crosshair;
     }
+    main.playing canvas { cursor: none; }
+    .game-crosshair {
+      position: absolute;
+      z-index: 2;
+      width: 28px;
+      height: 28px;
+      color: #55ded4;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      visibility: hidden;
+    }
+    .game-crosshair svg { display: block; width: 100%; height: 100%; }
+    main:not(.playing), main:not(.playing) * {
+      cursor: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2232%22 height=%2232%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M29 16C23 8 13 6 6 12L2 8v16l4-4c7 6 17 4 23-4Z%22 fill=%22%235dd8d4%22 stroke=%22%230b3049%22 stroke-width=%222%22 stroke-linejoin=%22round%22/%3E%3Ccircle cx=%2222%22 cy=%2214%22 r=%221.5%22 fill=%22%230b3049%22/%3E%3C/svg%3E") 15 16, auto;
+    }
+    main:not(.playing) button:hover,
+    main:not(.playing) button:hover *,
+    main:not(.playing) .color-input-wrap:hover,
+    main:not(.playing) .color-input-wrap:hover * {
+      cursor: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2238%22 height=%2238%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M29 16C23 8 13 6 6 12L2 8v16l4-4c7 6 17 4 23-4Z%22 fill=%22%235dd8d4%22 stroke=%22%230b3049%22 stroke-width=%222%22 stroke-linejoin=%22round%22/%3E%3Ccircle cx=%2222%22 cy=%2214%22 r=%221.5%22 fill=%22%230b3049%22/%3E%3C/svg%3E") 18 19, auto;
+    }
     .hud {
       position: absolute;
       z-index: 2;
@@ -203,7 +224,7 @@
       border: 0;
       border-radius: 50%;
       opacity: 0;
-      cursor: pointer;
+      cursor: inherit;
     }
     .color-picker input:focus-visible { outline: none; }
     .color-reset {
@@ -253,7 +274,11 @@
     .tips-guidance { display: flex; flex: 1; flex-wrap: wrap; justify-content: center; gap: 8px 20px; }
     .tips span { display: inline-flex; align-items: center; gap: 6px; }
     .tips b { color: #f5ffff; font-weight: 700; }
+    .tips .icon { display: inline-flex; width: 18px; height: 18px; flex: 0 0 auto; color: #5dd8d4; }
+    .tips .icon svg { display: block; width: 100%; height: 100%; }
     .legend { color: #92adbb; font-size: 11px; }
+    .legend-fish { display: inline-flex; width: 16px; height: 16px; color: #5dd8d4; }
+    .legend-fish svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     @media (max-width: 560px) {
       .topbar { padding: 8px 10px; }
       .brand-mark { width: 39px; height: 39px; border-radius: 13px; }
@@ -291,6 +316,12 @@
     </header>
     <section class="game-shell" aria-label="fish.io game">
       <canvas id="game" width="960" height="600" aria-label="Ocean arena. Move your mouse to steer your fish, which swims forward at a constant speed."></canvas>
+      <div class="game-crosshair" id="game-crosshair" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M16 2v9M16 21v9M2 16h9M21 16h9"></path>
+          <circle cx="16" cy="16" r="2"></circle>
+        </svg>
+      </div>
       <div class="hud" aria-live="polite" hidden>
         <div class="stat-card">
           <div class="stat-label">Your score</div>
@@ -339,9 +370,9 @@
     </section>
     <div class="tips">
       <div class="tips-guidance">
-        <span id="steering-tip">🖱️ <b>Move mouse</b> to steer</span>
-        <span id="boost-tip">⚡ <b>Hold left mouse button</b> to boost · 1 pt/sec</span>
-        <span class="legend">Eat the little ones. Avoid the big ones.</span>
+        <span id="steering-tip"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="6"></rect><path d="M12 3v6"></path></svg></span> <b>Move mouse</b> to steer</span>
+        <span id="boost-tip"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13.2 1.5-8.4 11.5h5.8l-.8 9.5L19.2 10h-6l0-8.5Z"></path></svg></span> <b>Hold left mouse button</b> to boost · 1 pt/sec</span>
+        <span class="legend"><span class="legend-fish" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5.2 12 1.5 8v8l3.7-4Zm.8 0c2.5-3.7 5.7-5.5 9.1-5.5 3.5 0 6.1 2 7.4 5.5-1.3 3.5-3.9 5.5-7.4 5.5C11.7 17.5 8.5 15.7 6 12Z"/></svg></span> Eat the little ones. Avoid the big ones.</span>
       </div>
     </div>
   </main>
@@ -349,6 +380,8 @@
     (() => {
       const canvas = document.querySelector("#game");
       const ctx = canvas.getContext("2d");
+      const gameShell = document.querySelector(".game-shell");
+      const gameCrosshair = document.querySelector("#game-crosshair");
       const scoreText = document.querySelector("#score");
       const bestText = document.querySelector("#best");
       const hud = document.querySelector(".hud");
@@ -450,6 +483,7 @@
       }
       colorPicker.value = playerColor;
       colorPreview.style.backgroundColor = playerColor;
+      gameCrosshair.style.color = playerColor;
       bestText.textContent = best;
 
       function random(min, max) { return Math.random() * (max - min) + min; }
@@ -605,6 +639,7 @@
         camera.x = player.x - WIDTH / 2;
         camera.y = player.y - HEIGHT / 2;
         pointer = { x: WIDTH / 2, y: HEIGHT / 2, active: false };
+        gameCrosshair.style.visibility = "hidden";
         setBoostActive(false);
         boostDrain = 0;
         boostPointerId = null;
@@ -1028,6 +1063,7 @@
         active = false;
         setBoostActive(false);
         boostPointerId = null;
+        gameCrosshair.style.visibility = "hidden";
         hud.hidden = true;
         deathTransition = { elapsed: 0 };
         recordHighScore();
@@ -1127,6 +1163,12 @@
         pointer.x = (event.clientX - rect.left) * WIDTH / rect.width;
         pointer.y = (event.clientY - rect.top) * HEIGHT / rect.height;
         pointer.active = true;
+        if (active) {
+          const shellRect = gameShell.getBoundingClientRect();
+          gameCrosshair.style.left = `${event.clientX - shellRect.left - gameShell.clientLeft}px`;
+          gameCrosshair.style.top = `${event.clientY - shellRect.top - gameShell.clientTop}px`;
+          gameCrosshair.style.visibility = "visible";
+        }
       }
 
       function setBoostActive(isActive) {
@@ -1146,6 +1188,7 @@
       });
       canvas.addEventListener("pointerleave", () => {
         pointer.active = false;
+        gameCrosshair.style.visibility = "hidden";
         setBoostActive(false);
         boostDrain = 0;
         boostPointerId = null;
@@ -1191,6 +1234,7 @@
         playerColor = color;
         colorPicker.value = color;
         colorPreview.style.backgroundColor = color;
+        gameCrosshair.style.color = color;
         if (player) player.color = playerColor;
         try {
           localStorage.setItem("fish-io-color", playerColor);
