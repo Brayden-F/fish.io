@@ -85,55 +85,7 @@
       display: block;
       width: 100%;
       height: 100%;
-      touch-action: none;
       cursor: crosshair;
-    }
-    .mobile-boost {
-      position: absolute;
-      z-index: 2;
-      right: 22px;
-      bottom: 22px;
-      display: grid;
-      width: 64px;
-      height: 64px;
-      place-items: center;
-      border: 1px solid rgba(207, 247, 255, .35);
-      border-radius: 50%;
-      background: rgba(5, 27, 44, .78);
-      color: #f1fbff;
-      font-family: inherit;
-      font-size: 28px;
-      line-height: 1;
-      font-weight: 800;
-      touch-action: none;
-      user-select: none;
-    }
-    .mobile-boost[hidden] { display: none; }
-    .mobile-boost:active { background: rgba(27, 125, 133, .9); }
-    .mobile-joystick {
-      position: absolute;
-      z-index: 2;
-      left: 22px;
-      bottom: 22px;
-      display: grid;
-      width: 104px;
-      height: 104px;
-      place-items: center;
-      border: 1px solid rgba(207, 247, 255, .32);
-      border-radius: 50%;
-      background: rgba(5, 27, 44, .4);
-      pointer-events: none;
-      touch-action: none;
-    }
-    .mobile-joystick[hidden] { display: none; }
-    .mobile-joystick-knob {
-      width: 46px;
-      height: 46px;
-      border: 1px solid rgba(207, 247, 255, .65);
-      border-radius: 50%;
-      background: rgba(100, 233, 227, .55);
-      box-shadow: 0 3px 12px rgba(0, 0, 0, .35);
-      transform: translate(0, 0);
     }
     .hud {
       position: absolute;
@@ -302,17 +254,6 @@
     .tips span { display: inline-flex; align-items: center; gap: 6px; }
     .tips b { color: #f5ffff; font-weight: 700; }
     .legend { color: #92adbb; font-size: 11px; }
-    .controls-picker { flex: 0 0 auto; }
-    .controls-picker select {
-      padding: 6px 26px 6px 9px;
-      border: 1px solid rgba(121, 223, 240, .25);
-      border-radius: 4px;
-      background: #0a2638;
-      color: #b3cbd5;
-      font: inherit;
-      font-size: 11px;
-    }
-    .controls-picker select:focus-visible { outline: 2px solid #64e9e3; outline-offset: 2px; }
     @media (max-width: 560px) {
       .topbar { padding: 8px 10px; }
       .brand-mark { width: 39px; height: 39px; border-radius: 13px; }
@@ -333,10 +274,6 @@
       .tips { gap: 8px; padding: 8px; font-size: 10px; }
       .tips-guidance { gap: 5px 13px; justify-content: flex-start; }
       .legend { display: none !important; }
-      .controls-picker select { padding: 6px 20px 6px 6px; font-size: 10px; }
-      .mobile-boost { right: 16px; bottom: 16px; width: 58px; height: 58px; }
-      .mobile-joystick { left: 16px; bottom: 16px; width: 92px; height: 92px; }
-      .mobile-joystick-knob { width: 42px; height: 42px; }
     }
   </style>
 </head>
@@ -354,10 +291,6 @@
     </header>
     <section class="game-shell" aria-label="fish.io game">
       <canvas id="game" width="960" height="600" aria-label="Ocean arena. Move your mouse to steer your fish, which swims forward at a constant speed."></canvas>
-      <button class="mobile-boost" id="mobile-boost" type="button" aria-label="Boost" hidden>⚡</button>
-      <div class="mobile-joystick" id="mobile-joystick" aria-hidden="true" hidden>
-        <div class="mobile-joystick-knob" id="mobile-joystick-knob"></div>
-      </div>
       <div class="hud" aria-live="polite" hidden>
         <div class="stat-card">
           <div class="stat-label">Your score</div>
@@ -410,12 +343,6 @@
         <span id="boost-tip">⚡ <b>Hold left mouse button</b> to boost · 1 pt/sec</span>
         <span class="legend">Eat the little ones. Avoid the big ones.</span>
       </div>
-      <label class="controls-picker">
-        <select id="controls-mode" aria-label="Control scheme">
-          <option value="pc">PC controls</option>
-          <option value="mobile">Mobile controls</option>
-        </select>
-      </label>
     </div>
   </main>
   <script>
@@ -434,12 +361,6 @@
       const instructions = document.querySelector("#instructions");
       const gameTip = document.querySelector("#game-tip");
       const controlsTips = document.querySelector(".tips");
-      const controlsModeSelect = document.querySelector("#controls-mode");
-      const steeringTip = document.querySelector("#steering-tip");
-      const boostTip = document.querySelector("#boost-tip");
-      const mobileBoostButton = document.querySelector("#mobile-boost");
-      const mobileJoystick = document.querySelector("#mobile-joystick");
-      const mobileJoystickKnob = document.querySelector("#mobile-joystick-knob");
       const colorPicker = document.querySelector("#fish-color");
       const colorPreview = document.querySelector("#color-preview");
       const resetColorButton = document.querySelector("#reset-fish-color");
@@ -493,7 +414,6 @@
         "HUH!?",
         "I like turtles.",
         "John likes turtles too.",
-        "You can change your control type in the menu if you are on mobile."
       ];
       const colors = ["#ff8a76", "#b798ff", "#ffd16e", "#68d9a7", "#ff82b7", "#69c8ff", "#e8a5ff", "#55ded4", "#ffb86c", "#a3ff7d", "#ff5f5f", "#ff9e5f", "#5fafff", "#5fffaf", "#d95fff", "#ff5f9e", "#5f9eff", "#9eff5f", "#ff5fd9", "#d9ff5f", "#5fd9ff", "#ffb3b3", "#b3ffb3", "#b3b3ff", "#5590dd",];
       let player;
@@ -516,19 +436,6 @@
       let boostHeld = false;
       let boostDrain = 0;
       let boostPointerId = null;
-      let controlsMode = "pc";
-      let joystickPointerId = null;
-      let joystickOrigin = { x: 0, y: 0 };
-      let joystickVector = { x: 0, y: 0 };
-
-      try {
-        const savedControlsMode = localStorage.getItem("fish-io-controls");
-        if (savedControlsMode === "pc" || savedControlsMode === "mobile") controlsMode = savedControlsMode;
-      } catch (error) {
-        console.warn("Could not read the saved control scheme.", error);
-      }
-      controlsModeSelect.value = controlsMode;
-      updateControlsMode();
 
       try {
         best = Number(localStorage.getItem("fish-io-best")) || 0;
@@ -698,10 +605,9 @@
         camera.x = player.x - WIDTH / 2;
         camera.y = player.y - HEIGHT / 2;
         pointer = { x: WIDTH / 2, y: HEIGHT / 2, active: false };
-        boostHeld = false;
+        setBoostActive(false);
         boostDrain = 0;
         boostPointerId = null;
-        releaseJoystick();
         scoreText.textContent = "1";
         recordHighScore();
         draw();
@@ -745,21 +651,18 @@
             boostDrain -= spent;
             setScore(-spent);
             if (score <= 1) {
-              boostHeld = false;
+              setBoostActive(false);
               boostDrain = 0;
             }
           }
         } else {
           boostDrain = 0;
-          if (score <= 1) boostHeld = false;
+          if (score <= 1) setBoostActive(false);
         }
 
         let dx = 0;
         let dy = 0;
-        if (controlsMode === "mobile") {
-          dx = joystickVector.x;
-          dy = joystickVector.y;
-        } else if (pointer.active) {
+        if (pointer.active) {
           dx = pointer.x - (player.x - camera.x);
           dy = pointer.y - (player.y - camera.y);
           const length = Math.hypot(dx, dy);
@@ -1123,10 +1026,8 @@
       function endGame() {
         if (!active) return;
         active = false;
-        boostHeld = false;
+        setBoostActive(false);
         boostPointerId = null;
-        releaseJoystick();
-        updateControlsMode();
         hud.hidden = true;
         deathTransition = { elapsed: 0 };
         recordHighScore();
@@ -1155,7 +1056,6 @@
         controlsTips.hidden = true;
         hud.hidden = false;
         active = true;
-        updateControlsMode();
         runStartedAt = performance.now();
         main.classList.add("playing");
         modal.classList.remove("game-over");
@@ -1222,140 +1122,63 @@
       }
 
       function setPointer(event) {
-        if (controlsMode === "mobile") {
-          if (event.pointerId !== joystickPointerId) return;
-          const deltaX = event.clientX - joystickOrigin.x;
-          const deltaY = event.clientY - joystickOrigin.y;
-          const distance = Math.hypot(deltaX, deltaY);
-          const maxOffset = Math.max(0, (mobileJoystick.clientWidth - mobileJoystickKnob.offsetWidth) / 2 - 1);
-          const scale = distance > maxOffset ? maxOffset / distance : 1;
-          mobileJoystickKnob.style.transform =
-            `translate(${deltaX * scale}px, ${deltaY * scale}px)`;
-          joystickVector = distance > 8
-            ? { x: deltaX / distance, y: deltaY / distance }
-            : { x: 0, y: 0 };
-          return;
-        }
+        if (event.pointerType !== "mouse") return;
         const rect = canvas.getBoundingClientRect();
         pointer.x = (event.clientX - rect.left) * WIDTH / rect.width;
         pointer.y = (event.clientY - rect.top) * HEIGHT / rect.height;
         pointer.active = true;
       }
 
-      function updateControlsMode() {
-        steeringTip.innerHTML = controlsMode === "mobile"
-          ? "☝️ <b>Touch and drag</b> to steer"
-          : "🖱️ <b>Move mouse</b> to steer";
-        boostTip.innerHTML = controlsMode === "mobile"
-          ? "⚡ <b>Hold Boost</b> to boost · 1 pt/sec"
-          : "⚡ <b>Hold left mouse button</b> to boost · 1 pt/sec";
-        mobileBoostButton.hidden = controlsMode !== "mobile" || !active;
-        mobileJoystick.hidden = controlsMode !== "mobile" || !active;
+      function setBoostActive(isActive) {
+        boostHeld = isActive;
       }
 
-      function releaseJoystick() {
-        joystickPointerId = null;
-        joystickVector = { x: 0, y: 0 };
-        mobileJoystickKnob.style.transform = "translate(0, 0)";
-      }
-
-      controlsModeSelect.addEventListener("change", () => {
-        controlsMode = controlsModeSelect.value;
-        boostHeld = false;
-        boostDrain = 0;
-        boostPointerId = null;
-        releaseJoystick();
-        updateControlsMode();
-        try {
-          localStorage.setItem("fish-io-controls", controlsMode);
-        } catch (error) {
-          console.warn("Could not save the control scheme.", error);
-        }
-      });
       canvas.addEventListener("pointermove", setPointer);
       canvas.addEventListener("pointerdown", event => {
-        if (!active) return;
-        if (controlsMode === "mobile") {
-          if (joystickPointerId !== null) return;
-          joystickPointerId = event.pointerId;
-          joystickOrigin = { x: event.clientX, y: event.clientY };
-          joystickVector = { x: 0, y: 0 };
-          mobileJoystickKnob.style.transform = "translate(0, 0)";
-        } else {
-          setPointer(event);
-        }
+        if (!active || event.pointerType !== "mouse") return;
+        setPointer(event);
         canvas.setPointerCapture(event.pointerId);
-        if (controlsMode === "pc" && active && event.button === 0 && score > 1) {
-          boostHeld = true;
+        if (event.button === 0 && score > 1) {
+          setBoostActive(true);
           boostPointerId = event.pointerId;
           boostDrain = 0;
         }
       });
       canvas.addEventListener("pointerleave", () => {
-        if (controlsMode === "pc") {
-          pointer.active = false;
-          boostHeld = false;
-          boostDrain = 0;
-          boostPointerId = null;
-        }
+        pointer.active = false;
+        setBoostActive(false);
+        boostDrain = 0;
+        boostPointerId = null;
       });
       canvas.addEventListener("pointerup", event => {
-        if (controlsMode === "mobile") {
-          if (event.pointerId === joystickPointerId) releaseJoystick();
-        } else {
-          pointer.active = false;
-        }
+        pointer.active = false;
         if (event.pointerId === boostPointerId) {
-          boostHeld = false;
+          setBoostActive(false);
           boostDrain = 0;
           boostPointerId = null;
         }
       });
       canvas.addEventListener("pointercancel", event => {
-        if (controlsMode === "mobile") {
-          if (event.pointerId === joystickPointerId) releaseJoystick();
-        } else {
-          pointer.active = false;
-        }
+        pointer.active = false;
         if (event.pointerId === boostPointerId) {
-          boostHeld = false;
+          setBoostActive(false);
           boostDrain = 0;
           boostPointerId = null;
         }
       });
       window.addEventListener("pointerup", event => {
         if (event.pointerId === boostPointerId) {
-          boostHeld = false;
+          setBoostActive(false);
           boostDrain = 0;
           boostPointerId = null;
         }
       });
       window.addEventListener("pointercancel", event => {
         if (event.pointerId === boostPointerId) {
-          boostHeld = false;
+          setBoostActive(false);
           boostDrain = 0;
           boostPointerId = null;
         }
-      });
-      mobileBoostButton.addEventListener("pointerdown", event => {
-        if (!active || controlsMode !== "mobile" || score <= 1) return;
-        event.preventDefault();
-        mobileBoostButton.setPointerCapture(event.pointerId);
-        boostHeld = true;
-        boostPointerId = event.pointerId;
-        boostDrain = 0;
-      });
-      mobileBoostButton.addEventListener("pointerup", event => {
-        if (event.pointerId !== boostPointerId) return;
-        boostHeld = false;
-        boostDrain = 0;
-        boostPointerId = null;
-      });
-      mobileBoostButton.addEventListener("pointercancel", event => {
-        if (event.pointerId !== boostPointerId) return;
-        boostHeld = false;
-        boostDrain = 0;
-        boostPointerId = null;
       });
       colorPicker.addEventListener("input", () => {
         setPlayerColor(colorPicker.value);
